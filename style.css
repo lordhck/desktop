@@ -183,7 +183,6 @@ window.network .sheet { padding: 6px 14px 10px; }
 window.network .sheet button { padding: 7px 16px; background-color: alpha(@fg, 0.08); }
 window.network .sheet button:hover { background-color: alpha(@fg, 0.14); }
 window.network .sheet button.primary { background-color: @accent; }
-window.network .sheet button.danger label { color: #e06c75; }
 window.network .sheet button.icon { padding: 4px; background: none; }
 window.network .sheet button.icon:hover { background-color: alpha(@fg, 0.10); }
 window.network .details {
@@ -310,6 +309,18 @@ popover.picker-list undershoot, popover.picker-list overshoot { background: none
 popover.picker-list row { padding: 7px 10px; border-radius: 6px; color: @fg; }
 popover.picker-list row:hover { background-color: alpha(@fg, 0.08); }
 popover.picker-list row:selected { background-color: @accent; }
+
+window.settings button.round, window.network button.round {
+    background: alpha(#e06c75, 0.12);
+    border: none;
+    border-radius: 50%;
+    box-shadow: none;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    outline-width: 0;
+}
+window.settings button.round:hover, window.network button.round:hover { background: alpha(#e06c75, 0.24); }
 
 window.settings button.thumb {
     background: none;

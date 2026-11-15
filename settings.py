@@ -2,7 +2,7 @@
 """Control Panel: the shell's own settings app.
 
     settings.py          open it
-    settings.py <page>   open it on a page (appearance, sound, keyboard, startup, about)
+    settings.py <page>   open it on a page (appearance, sound, network, keyboard, startup, about)
 """
 import getpass
 import glob
@@ -16,6 +16,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 
 import gi
 
@@ -26,7 +27,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 import volume  # noqa: E402
 from desktop import WALLPAPER_FILE, cover, save_wallpaper  # noqa: E402
-from network import css, image, label  # noqa: E402
+from network import css, default_route, fields, image, label, set_wifi, wifi_blocked  # noqa: E402
 from taskbar import CSS_FILE  # noqa: E402
 
 # (section, [(page, title, subtitle, icon, badge colour, search words)])
@@ -339,6 +340,101 @@ class SoundPage(Gtk.ScrolledWindow):
         self.outputs.show_all()
 
 
+# --- Network ---
+
+def nm(*args):
+    return subprocess.run(["nmcli", "-t", *args], capture_output=True, text=True).stdout.splitlines()
+
+
+class NetworkPage(Gtk.ScrolledWindow):
+    """Status, connection details and saved networks; joining a network stays in the tray popup."""
+
+    def __init__(self):
+        super().__init__(hscrollbar_policy=Gtk.PolicyType.NEVER)
+        self.box = css(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8), "page")
+        self.add(self.box)
+        self._shown = None
+        self.refresh()
+        GLib.timeout_add_seconds(5, self._tick)
+
+    def _tick(self):
+        if self.get_mapped():  # only while the page is on screen
+            self.refresh()
+        return True
+
+    def _state(self):
+        devices = [fields(line) for line in nm("-f", "DEVICE,TYPE,STATE,CONNECTION", "dev")]
+        saved = [fields(line) for line in nm("-f", "NAME,UUID,TYPE,AUTOCONNECT,TIMESTAMP", "con", "show")]
+        iface, gateway = default_route()
+        details = {}
+        for line in nm("-f", "GENERAL.HWADDR,IP4.ADDRESS,IP4.DNS", "dev", "show", iface) if iface else []:
+            key, _, value = line.partition(":")
+            details.setdefault(key.split("[")[0], []).append(value)
+        return devices, saved, iface, gateway, details, wifi_blocked()
+
+    def refresh(self):
+        state = self._state()
+        if state == self._shown:  # rebuilding would flicker and lose the scroll position
+            return
+        self._shown = state
+        devices, saved, iface, gateway, details, off = state
+        self.box.foreach(lambda w: w.destroy())
+
+        status = []
+        wifi = next((d for d in devices if d[1] == "wifi"), None)
+        if wifi:
+            switch = Gtk.Switch(active=not off)
+            switch.connect("state-set", lambda _s, on: self._set_wifi(on) or False)
+            sub = "Off" if off else f"Connected to {wifi[3]}" if wifi[2] == "connected" else "Not connected"
+            status.append(row("Wi-Fi", sub, switch, image("offline" if off else "wifi-3", 20)))
+        for name, kind, st, _ in devices:
+            if kind == "ethernet":
+                sub = {"connected": f"Connected · {name}", "unavailable": "Cable unplugged",
+                       "unmanaged": "Not managed by NetworkManager"}.get(st, st.capitalize())
+                status.append(row("Ethernet", sub, icon=image("wired", 20)))
+        self.box.add(heading("Status"))
+        self.box.add(card(status or [row("No network devices")]))
+
+        if iface:
+            info = [("Interface", iface),
+                    ("IPv4 address", ", ".join(details.get("IP4.ADDRESS", ["—"]))),
+                    ("Gateway", gateway),
+                    ("DNS servers", ", ".join(details.get("IP4.DNS", [])) or "—"),
+                    ("MAC address", details.get("GENERAL.HWADDR", ["—"])[0])]
+            self.box.add(heading("Connection"))
+            self.box.add(card([row(k, end=label(v, "value", xalign=1)) for k, v in info]))
+
+        active = wifi[3] if wifi and wifi[2] == "connected" else None
+        rows = []
+        for name, uuid, kind, auto, stamp in sorted(saved, key=lambda c: -int(c[4] or 0)):
+            if kind != "802-11-wireless":
+                continue
+            sub = "Connected" if name == active else \
+                f"Last used {time.strftime('%-d %b %Y', time.localtime(int(stamp)))}" if stamp != "0" else "Never used"
+            auto_switch = Gtk.Switch(active=auto == "yes", tooltip_text="Connect automatically",
+                                     valign=Gtk.Align.CENTER)
+            auto_switch.connect("state-set", lambda _s, on, u=uuid: self._nm(
+                "con", "modify", "uuid", u, "connection.autoconnect", "yes" if on else "no") or False)
+            forget = css(Gtk.Button(tooltip_text="Forget network", valign=Gtk.Align.CENTER), "round")
+            forget.add(image("close-red", 16))  # 16 keeps the 24px grid on whole pixels
+            forget.connect("clicked", lambda *_, u=uuid: self._nm("con", "delete", "uuid", u))
+            end = Gtk.Box(spacing=12)
+            end.add(auto_switch)
+            end.add(forget)
+            rows.append(row(name, sub, end))
+        self.box.add(heading("Saved Wi-Fi networks"))
+        self.box.add(card(rows or [row("No saved networks")]))
+        self.box.show_all()
+
+    def _nm(self, *args):
+        subprocess.run(["nmcli", *args], capture_output=True)
+        self.refresh()
+
+    def _set_wifi(self, on):
+        set_wifi(on)
+        GLib.timeout_add(1500, lambda: self.refresh() or False)  # NetworkManager needs a moment
+
+
 # --- Startup ---
 
 def autostart_entries():
@@ -499,7 +595,7 @@ def keyboard_page():
 
 
 PAGES = {"appearance": AppearancePage, "sound": SoundPage, "startup": startup_page, "about": about_page,
-         "keyboard": keyboard_page}
+         "keyboard": keyboard_page, "network": NetworkPage}
 
 
 # --- window ---

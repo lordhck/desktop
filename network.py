@@ -338,14 +338,18 @@ class Popup(Gtk.Window):
         return self.sheet
 
     def _buttons(self, actions):
-        """Show the sheet with (text, style, action) buttons at the bottom: "danger" ones
-        on the left, the rest on the right. Returns the last button."""
+        """Show the sheet with (text, style, action) buttons at the bottom: "danger" ones on the
+        left as a round red cross (text as tooltip), the rest on the right. Returns the last button."""
         row = Gtk.Box(valign=Gtk.Align.END, vexpand=True)
         right = Gtk.Box(spacing=8)
         row.pack_end(right, False, False, 0)
         btn = None
         for text, style, action in actions:
-            btn = css(Gtk.Button(label=text), *([style] if style else []))
+            if style == "danger":
+                btn = css(Gtk.Button(tooltip_text=text, valign=Gtk.Align.CENTER), "round")
+                btn.add(image("close-red", 16))  # 16 keeps the 24px grid on whole pixels
+            else:
+                btn = css(Gtk.Button(label=text), *([style] if style else []))
             btn.connect("clicked", lambda _b, a=action: a())
             (row.pack_start(btn, False, False, 0) if style == "danger" else right.add(btn))
         self.sheet.add(row)
