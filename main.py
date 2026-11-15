@@ -4,10 +4,13 @@
     main.py           start the shell
     main.py --menu    open/close the Start menu of the running shell (bind to Super)
     main.py --reload  restart the running shell to pick up code changes
+    main.py --volume up|down|mute   for the media keys, same rules as the tray
 """
 import locale
 import os
+import re
 import signal
+import subprocess
 import sys
 
 PIDFILE = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "shell.pid")
@@ -22,6 +25,21 @@ def running_pid():
             return pid if b"main.py" in f.read() else None
     except (OSError, ValueError):
         return None
+
+
+def volume_key(action):
+    """Without GTK, so held keys stay fast. Mirrors VolItem: changing unmutes, muted counts as 0."""
+    def pactl(*args):
+        return subprocess.run(["pactl", *args], capture_output=True, text=True).stdout
+    if action == "mute":
+        pactl("set-sink-mute", "@DEFAULT_SINK@", "toggle")
+        return
+    muted = "yes" in pactl("get-sink-mute", "@DEFAULT_SINK@")
+    m = re.search(r"(\d+)%", pactl("get-sink-volume", "@DEFAULT_SINK@"))
+    shown = 0 if muted or not m else int(m.group(1))
+    if muted:
+        pactl("set-sink-mute", "@DEFAULT_SINK@", "0")
+    pactl("set-sink-volume", "@DEFAULT_SINK@", f"{max(0, min(100, shown + (5 if action == 'up' else -5)))}%")
 
 
 def on_signal(signum, handler):
@@ -42,6 +60,9 @@ def main():
         if pid is None:
             sys.exit("shell is not running")
         os.kill(pid, commands[sys.argv[1]])
+        return
+    if len(sys.argv) == 3 and sys.argv[1] == "--volume" and sys.argv[2] in ("up", "down", "mute"):
+        volume_key(sys.argv[2])
         return
 
     # GTK is only loaded here: `--menu` above must start fast

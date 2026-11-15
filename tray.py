@@ -9,6 +9,7 @@ from gi.repository import GLib, Gtk, Wnck  # noqa: E402
 
 from launcher import own_icon  # noqa: E402
 from network import NetItem  # noqa: E402
+from volume import VolItem  # noqa: E402
 
 ICON = 20
 
@@ -47,6 +48,7 @@ class Tray(Gtk.Box):
     def __init__(self):
         super().__init__()
         self.get_style_context().add_class("tray")
+        self.pack_start(VolItem(), False, False, 0)
         self.pack_start(NetItem(), False, False, 0)
         self.pack_start(Clock(), False, False, 0)
         self.pack_start(ShowDesktop(), False, False, 0)

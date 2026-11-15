@@ -229,3 +229,10 @@ window.network switch slider {
     min-height: 14px;
     margin: 2px;
 }
+
+/* volume popup: reuses the network popup look */
+window.volume box { padding: 10px 14px 10px 8px; min-width: 260px; }
+window.volume button { padding: 6px; }
+window.volume scale trough { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.15); border: none; }
+window.volume scale highlight { background-color: @accent; border-radius: 2px; border: none; }
+window.volume scale slider { min-width: 14px; min-height: 14px; border-radius: 7px; background: @fg; border: none; box-shadow: none; }
