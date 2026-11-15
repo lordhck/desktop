@@ -48,11 +48,13 @@ def main():
     import gi
     gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk
+    from desktop import Desktop
     from taskbar import Taskbar
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     locale.setlocale(locale.LC_ALL, "")  # clock in the user's language
-    bar = Taskbar()
+    bar = Taskbar()  # first: it loads the CSS
+    Desktop().show_all()
     bar.connect("destroy", Gtk.main_quit)
     bar.show_all()
     on_signal(signal.SIGUSR1, lambda: bar.start.toggle_menu() or True)

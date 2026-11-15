@@ -20,8 +20,8 @@ ICON = 24
 DRAG_THRESHOLD = 8  # px before a press becomes a drag
 CSS_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "style.css")
 ICONS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "icons")
-PINNED_FILE = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
-                           "shell", "pinned")
+CONFIG_DIR = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "shell")
+PINNED_FILE = os.path.join(CONFIG_DIR, "pinned")
 
 # window types that get a button (like Xfce's window list)
 LISTED = (Wnck.WindowType.NORMAL, Wnck.WindowType.DIALOG)
