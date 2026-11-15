@@ -6,6 +6,7 @@
 """
 import getpass
 import glob
+import hashlib
 import json
 import os
 import platform
@@ -14,6 +15,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 
 import gi
 
@@ -198,12 +200,29 @@ def about_page():
 
 # --- Appearance ---
 
-class AppearancePage(Gtk.ScrolledWindow):
-    THUMB = (160, 90)
+PREVIEW = (480, 270)
+THUMB = (160, 90)
+THUMB_CACHE = os.path.join(GLib.get_user_cache_dir(), "shell", "thumbs")
 
+
+def preview_pixbuf(path):
+    """The image cropped to PREVIEW, cached: decoding a big photo takes a second."""
+    key = hashlib.md5(f"{path}:{os.stat(path).st_mtime_ns}".encode()).hexdigest()
+    cached = os.path.join(THUMB_CACHE, f"{key}.png")
+    try:
+        return GdkPixbuf.Pixbuf.new_from_file(cached)
+    except GLib.Error:
+        pixbuf = cover(path, *PREVIEW)
+        os.makedirs(THUMB_CACHE, exist_ok=True)
+        pixbuf.savev(cached, "png", [], [])
+        return pixbuf
+
+
+class AppearancePage(Gtk.ScrolledWindow):
     def __init__(self):
         super().__init__(hscrollbar_policy=Gtk.PolicyType.NEVER)
         self.preview = css(Gtk.Image(), "preview")
+        self.preview.set_size_request(*PREVIEW)  # holds its place while loading
         self.grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=4,
                                 column_spacing=6, row_spacing=6, homogeneous=True)
         choose = Gtk.Button(label="Choose another picture…", halign=Gtk.Align.START)
@@ -213,51 +232,60 @@ class AppearancePage(Gtk.ScrolledWindow):
             box.add(child)
         self.add(box)
         self.thumbs = {}
-        self.current = self._read_current()
-        self._update_preview()
-        pictures = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES) or os.path.expanduser("~/Pictures")
-        files = sorted((p for p in glob.glob(os.path.join(pictures, "*")) if GdkPixbuf.Pixbuf.get_file_info(p)[0]),
-                       key=os.path.getmtime, reverse=True)
-        # one per idle tick: big photos take a while to scale
-        GLib.idle_add(self._add_thumb, iter(files))
-
-    def _read_current(self):
         try:
             with open(WALLPAPER_FILE) as f:
-                return f.read().strip()
+                self.current = f.read().strip()
         except OSError:
-            return None
+            self.current = None
+        pictures = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES) or os.path.expanduser("~/Pictures")
+        files = sorted(glob.glob(os.path.join(pictures, "*")), key=os.path.getmtime, reverse=True)
+        # decoding happens off the main thread, so the page opens at once
+        threading.Thread(target=self._load, args=(self.current, files), daemon=True).start()
 
-    def _update_preview(self):
+    def _load(self, current, files):
+        if current:
+            self._load_one(current, self._show_preview)
+        for path in files:
+            self._load_one(path, self._add_thumb)
+
+    def _load_one(self, path, done):
+        # by name: reading the header of a big photo is slow
+        if not Gio.content_type_guess(path, None)[0].startswith("image/"):
+            return
         try:
-            self.preview.set_from_pixbuf(cover(self.current, 480, 270))
-        except (TypeError, GLib.Error):
-            self.preview.clear()
+            pixbuf = preview_pixbuf(path)
+        except (OSError, GLib.Error):
+            return
+        GLib.idle_add(done, path, pixbuf)
+
+    def _show_preview(self, path, pixbuf):
+        if path == self.current:  # not if another one was picked meanwhile
+            self.preview.set_from_pixbuf(pixbuf)
+        return False
+
+    def _add_thumb(self, path, pixbuf):
+        button = css(Gtk.Button(tooltip_text=os.path.basename(path), halign=Gtk.Align.CENTER), "thumb")
+        button.add(Gtk.Image.new_from_pixbuf(pixbuf.scale_simple(*THUMB, GdkPixbuf.InterpType.BILINEAR)))
+        button.connect("clicked", lambda *_: self._set(path, pixbuf))
+        self.thumbs[path] = button
+        self.grid.add(button)
+        button.show_all()
+        self._mark_selected()
+        return False
+
+    def _mark_selected(self):
         for path, button in self.thumbs.items():
             ctx = button.get_style_context()
             (ctx.add_class if path == self.current else ctx.remove_class)("selected")
 
-    def _add_thumb(self, files):
-        path = next(files, None)
-        if path is None:
-            return False
-        try:
-            thumb = cover(path, *self.THUMB)
-        except GLib.Error:
-            return True
-        button = css(Gtk.Button(tooltip_text=os.path.basename(path)), "thumb")
-        button.add(Gtk.Image.new_from_pixbuf(thumb))
-        button.connect("clicked", lambda *_: self._set(path))
-        self.thumbs[path] = button
-        self.grid.add(button)
-        button.show_all()
-        self._update_preview()
-        return True
-
-    def _set(self, path):
+    def _set(self, path, pixbuf=None):
         save_wallpaper(path)  # the desktop watches the file
         self.current = path
-        self._update_preview()
+        self._mark_selected()
+        if pixbuf:
+            self.preview.set_from_pixbuf(pixbuf)
+        else:
+            threading.Thread(target=self._load_one, args=(path, self._show_preview), daemon=True).start()
 
     def _choose(self):
         dialog = Gtk.FileChooserNative(title="Choose a wallpaper", action=Gtk.FileChooserAction.OPEN,
