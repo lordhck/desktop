@@ -4,6 +4,9 @@ A small desktop shell for Xfce, written in Python and GTK 3: a taskbar with a St
 grouped and pinned apps, a network indicator with a Wi-Fi popup, a clock and power options.
 It runs on xfwm4 in place of xfce4-panel.
 
+The idea is to bring a tiny desktop to a server distro. It's built on Ubuntu Server,
+chosen because nothing extra is installed: every package is one you picked.
+
 ## Requirements
 
     sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-wnck-3.0 librsvg2-common \
