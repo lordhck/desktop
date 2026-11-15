@@ -17,7 +17,9 @@ from launcher import ICONS, run  # noqa: E402
 
 ICON = 20
 PERIOD = 3        # seconds between status checks
-LIST_HEIGHT = 320
+LIST_HEIGHT = 340
+DNS = {"Auto": [], "Cloudflare": ["1.1.1.1", "1.0.0.1"], "Google": ["8.8.8.8", "8.8.4.4"],
+       "Quad9": ["9.9.9.9", "149.112.112.112"]}
 
 
 def default_route():
@@ -358,8 +360,10 @@ class Popup(Gtk.Window):
         self._rates = None
 
     def _details(self, n):
-        """Security, IP, gateway and live traffic of the current connection."""
-        grid = css(Gtk.Grid(column_spacing=16, row_spacing=8), "details")
+        """Security, IP, gateway, live traffic and DNS of the current connection."""
+        panel = css(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14), "details")
+        grid = Gtk.Grid(column_spacing=16, row_spacing=8)
+        panel.add(grid)
         iface = self.item.iface
         values = {"Security": label(n["security"] or "Open", "value", hexpand=True, xalign=1)}
         for key, value in (("IP address", ipv4(iface)), ("Gateway", self.item.gateway or "—")):
@@ -382,7 +386,52 @@ class Popup(Gtk.Window):
             return True
         tick()
         self._rates = GLib.timeout_add_seconds(1, tick)
-        return grid
+        panel.add(self._dns(iface))
+        return panel
+
+    def _dns(self, iface):
+        """Segmented DNS provider picker for the active connection."""
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.add(label("DNS", "dim"))
+        strip = css(Gtk.Box(homogeneous=True), "segments")
+        box.add(strip)
+        buttons, con = {}, [None]
+
+        def select(name):
+            for key, b in buttons.items():
+                (b.get_style_context().add_class if key == name else b.get_style_context().remove_class)("selected")
+
+        def loaded(ok, out):
+            rows = [fields(line) for line in out.splitlines()] if ok else []
+            con[0] = next((r[-1] for r in rows if r[0] == "GENERAL.CONNECTION"), None)
+            dns = [r[-1] for r in rows if r[0].startswith("IP4.DNS")]
+            select(next((k for k, servers in DNS.items() if dns and dns[0] in servers), "Auto"))
+
+        def load():
+            nmcli(["-t", "-f", "GENERAL.CONNECTION,IP4.DNS", "dev", "show", iface], loaded)
+
+        def applied(ok, err):
+            if not ok:
+                self.status.set_text(f"Couldn't change DNS: {err}")
+                css(self.status, "bad")
+                load()
+
+        def choose(name):
+            if not con[0]:
+                return
+            select(name)
+            custom = "yes" if DNS[name] else "no"
+            # IPv6 too: otherwise the router's IPv6 DNS would still be used
+            nmcli(["con", "mod", con[0], "ipv4.dns", " ".join(DNS[name]),
+                   "ipv4.ignore-auto-dns", custom, "ipv6.ignore-auto-dns", custom],
+                  lambda ok, err: nmcli(["dev", "reapply", iface], applied) if ok else applied(ok, err))
+
+        for name, servers in DNS.items():
+            buttons[name] = Gtk.Button(label=name, tooltip_text=" · ".join(servers) or "From the router")
+            buttons[name].connect("clicked", lambda _b, n=name: choose(n))
+            strip.add(buttons[name])
+        load()
+        return box
 
     def _copy(self, button, value):
         Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(value, -1)

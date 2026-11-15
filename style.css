@@ -187,8 +187,17 @@ window.network .details {
     margin-top: 4px;
 }
 window.network .details label.dim { font-size: 9.5pt; }
+window.network .segments button { padding: 6px 0; border-radius: 0; background-color: alpha(@fg, 0.06); }
+window.network .segments button:first-child { border-radius: 6px 0 0 6px; }
+window.network .segments button:last-child { border-radius: 0 6px 6px 0; }
+window.network .segments button:not(:first-child) { box-shadow: inset 1px 0 alpha(@fg, 0.08); }
+window.network .segments button:hover { background-color: alpha(@fg, 0.12); }
+window.network .segments button.selected { box-shadow: inset 0 -2px @accent; }
+window.network .segments button.selected:not(:first-child) { box-shadow: inset 1px 0 alpha(@fg, 0.08), inset 0 -2px @accent; }
+window.network .segments button label { font-size: 9pt; }
 window.network .details label.value { font-size: 9.5pt; font-feature-settings: "tnum"; }
-window.network .details button.copy { padding: 0 4px; margin: -1px -4px; min-height: 0; border-radius: 4px; }
+window.network .details button.copy { background: none; padding: 0 4px; margin: -1px -4px; min-height: 0; border-radius: 4px; }
+window.network .details button.copy:hover { background-color: alpha(@fg, 0.10); }
 window.network .details button.copy label { font-size: 9.5pt; font-feature-settings: "tnum"; }
 window.network entry {
     background: alpha(black, 0.20);
