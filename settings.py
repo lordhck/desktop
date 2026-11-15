@@ -315,9 +315,10 @@ PAGES = {"appearance": AppearancePage, "sound": SoundPage, "startup": startup_pa
 
 class ControlPanel(Gtk.ApplicationWindow):
     def __init__(self, app):
-        super().__init__(application=app, title="Control Panel", default_width=840, default_height=660)
+        super().__init__(application=app, title="Control Panel", default_width=957, default_height=582)
         css(self, "settings")
-        self.header = Gtk.HeaderBar(show_close_button=True, title="Control Panel")
+        self.header = Gtk.HeaderBar(show_close_button=True, title="Control Panel",
+                                    decoration_layout=":minimize,close")
         self.set_titlebar(self.header)
         self.back = Gtk.Button.new_from_icon_name("go-previous-symbolic", Gtk.IconSize.BUTTON)
         self.back.connect("clicked", lambda *_: self.open(None))
