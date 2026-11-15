@@ -201,7 +201,7 @@ window.network .details label.value { font-size: 9.5pt; font-feature-settings: "
 window.network .details button.copy { background: none; padding: 0 4px; margin: -1px -4px; min-height: 0; border-radius: 4px; }
 window.network .details button.copy:hover { background-color: alpha(@fg, 0.10); }
 window.network .details button.copy label { font-size: 9.5pt; font-feature-settings: "tnum"; }
-window.network entry {
+window.network entry, window.settings .page entry, popover.picker-list entry {
     background: alpha(black, 0.20);
     color: @fg;
     caret-color: @fg;
@@ -210,7 +210,7 @@ window.network entry {
     box-shadow: none;
     padding: 7px 10px;
 }
-window.network entry:focus { border-color: @accent; }
+window.network entry:focus, window.settings .page entry:focus, popover.picker-list entry:focus { border-color: @accent; }
 window.network switch, window.settings switch {
     background: alpha(@fg, 0.15);
     border: none;
@@ -283,6 +283,29 @@ window.settings .card separator { background-color: alpha(@fg, 0.07); min-height
 window.settings .card label.value { color: alpha(@fg, 0.75); }
 window.settings button.row { background: none; border: none; border-radius: 10px; box-shadow: none; padding: 0; outline-width: 0; }
 window.settings button.row:hover { background-color: alpha(@fg, 0.06); }
+
+window.settings label.keys {
+    background-color: alpha(@fg, 0.08);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 9pt;
+}
+
+window.settings button.picker {
+    background: alpha(@fg, 0.08);
+    border: none;
+    border-radius: 6px;
+    box-shadow: none;
+    padding: 5px 10px;
+    min-width: 240px;
+}
+window.settings button.picker:hover { background: alpha(@fg, 0.12); }
+popover.picker-list { background-color: #2a2d32; border: 1px solid alpha(@fg, 0.10); border-radius: 8px; padding: 4px; }
+popover.picker-list list { background: none; }
+popover.picker-list undershoot, popover.picker-list overshoot { background: none; box-shadow: none; }
+popover.picker-list row { padding: 7px 10px; border-radius: 6px; color: @fg; }
+popover.picker-list row:hover { background-color: alpha(@fg, 0.08); }
+popover.picker-list row:selected { background-color: @accent; }
 
 window.settings button.thumb {
     background: none;

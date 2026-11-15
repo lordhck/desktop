@@ -2,7 +2,7 @@
 """Control Panel: the shell's own settings app.
 
     settings.py          open it
-    settings.py <page>   open it on a page (appearance, sound, startup, about)
+    settings.py <page>   open it on a page (appearance, sound, keyboard, startup, about)
 """
 import getpass
 import glob
@@ -12,6 +12,7 @@ import platform
 import re
 import shutil
 import socket
+import subprocess
 import sys
 
 import gi
@@ -38,7 +39,7 @@ SECTIONS = [
     ("Hardware", [
         ("sound", "Sound", "Output and volume", "volume-2", "red", "audio speaker mute"),
         ("network", "Network", "Wi-Fi and Ethernet", "wifi-3", "blue", "wifi internet wireless"),
-        ("keyboard", "Keyboard", "Keys and layout", "keyboard", "grey", "shortcuts"),
+        ("keyboard", "Keyboard", "Keys and layout", "keyboard", "grey", "shortcuts layout repeat"),
     ]),
     ("Region", [
         ("datetime", "Date & Time", "Clock and time zone", "clock", "teal", "timezone"),
@@ -47,6 +48,7 @@ SECTIONS = [
 AUTOSTART_USER = os.path.join(GLib.get_user_config_dir(), "autostart")
 AUTOSTART_DIRS = [os.path.join(d, "autostart") for d in reversed(GLib.get_system_config_dirs())] + [AUTOSTART_USER]
 DE = "Desktop Entry"
+SEARCH_FROM = 15  # a picker with more options than this gets a search box
 
 
 def card(rows):
@@ -85,6 +87,66 @@ def page(*children):
 
 def heading(text):
     return label(text.upper(), "section")
+
+
+def picker(options, current, on_pick):
+    """Button with the chosen option; opens a fixed-height scrolling list instead of a
+    screen-high menu, with a search box when the list is long. options: [(key, name)]."""
+    names = dict(options)
+    button = css(Gtk.MenuButton(), "picker")
+    content = Gtk.Box(spacing=10)
+    chosen = label(names.get(current, current))
+    content.pack_start(chosen, True, True, 0)
+    content.add(Gtk.Image.new_from_icon_name("pan-down-symbolic", Gtk.IconSize.MENU))
+    button.add(content)
+
+    rows = Gtk.ListBox(activate_on_single_click=True)
+    for key, name in options:
+        item = Gtk.ListBoxRow()
+        item.key = key
+        item.add(label(name))
+        rows.add(item)
+        if key == current:
+            rows.select_row(item)
+    long = len(options) > SEARCH_FROM
+    # long lists keep their height while filtering, so the popover doesn't jump
+    scroller = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, propagate_natural_height=True,
+                                  min_content_height=320 if long else -1, max_content_height=320,
+                                  min_content_width=260)
+    scroller.add(rows)
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+    popover = css(Gtk.Popover(), "picker-list")
+    popover.add(box)
+    button.set_popover(popover)
+
+    def picked(_rows, item):
+        chosen.set_text(names[item.key])
+        on_pick(item.key)
+        popover.popdown()
+
+    def opened():
+        if long:
+            search.set_text("")
+            search.grab_focus()
+        item = rows.get_selected_row()
+        if item:  # centre the current choice
+            adj = scroller.get_vadjustment()
+            adj.set_value(item.get_allocation().y - (adj.get_page_size() - item.get_allocation().height) / 2)
+        return False
+
+    if long:
+        search = Gtk.SearchEntry(placeholder_text="Search")
+        rows.set_filter_func(lambda item: search.get_text().strip().lower() in names[item.key].lower())
+        search.connect("search-changed", lambda *_: rows.invalidate_filter())
+        # Enter picks the first match
+        search.connect("activate", lambda *_: next(
+            (picked(rows, r) for r in rows.get_children() if r.get_child_visible()), None))
+        box.add(search)
+    box.add(scroller)
+    box.show_all()
+    rows.connect("row-activated", picked)
+    popover.connect("show", lambda *_: GLib.idle_add(opened))
+    return button
 
 
 # --- banner and About ---
@@ -308,7 +370,108 @@ def startup_page():
     return page(heading("Apps that start when you log in"), card([r for _, r in sorted(rows, key=lambda r: r[0])]))
 
 
-PAGES = {"appearance": AppearancePage, "sound": SoundPage, "startup": startup_page, "about": about_page}
+# --- Keyboard ---
+# xfsettingsd applies these the moment they change in xfconf
+
+def xfconf_get(channel, prop, default):
+    out = subprocess.run(["xfconf-query", "-c", channel, "-p", prop], capture_output=True, text=True)
+    return out.stdout.strip() if out.returncode == 0 else default
+
+
+def xfconf_set(channel, prop, kind, value):
+    subprocess.run(["xfconf-query", "-c", channel, "-p", prop, "-n", "-t", kind, "-s", str(value)])
+
+
+def layouts():
+    """[(code, name)] from xkb's list, sorted by name."""
+    found, section = [], None
+    with open("/usr/share/X11/xkb/rules/evdev.lst") as f:
+        for line in f:
+            if line.startswith("!"):
+                section = line.strip()
+            elif section == "! layout" and line.strip():
+                code, name = line.split(None, 1)
+                found.append((code, name.strip()))
+    return sorted(found, key=lambda layout: layout[1])
+
+
+def current_layout():
+    if xfconf_get("keyboard-layout", "/Default/XkbDisable", "true") == "false":
+        return xfconf_get("keyboard-layout", "/Default/XkbLayout", "us").split(",")[0]
+    # Xfce isn't managing it: whatever the system set
+    out = subprocess.run(["setxkbmap", "-query"], capture_output=True, text=True).stdout
+    m = re.search(r"layout:\s*([^,\s]+)", out)
+    return m.group(1) if m else "us"
+
+
+def set_layout(code):
+    xfconf_set("keyboard-layout", "/Default/XkbLayout", "string", code)
+    xfconf_set("keyboard-layout", "/Default/XkbVariant", "string", "")
+    xfconf_set("keyboard-layout", "/Default/XkbDisable", "bool", "false")
+
+
+def repeat_slider(prop, low, high, default, unit):
+    """Slider for a key-repeat value, saved once it stops moving."""
+    value = int(xfconf_get("keyboards", prop, default))
+    scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, low, high, 1)
+    scale.set_value(value)
+    scale.set_draw_value(False)
+    scale.set_size_request(260, -1)
+    shown = label(f"{value} {unit}", "dim", width_chars=8, xalign=1)
+    pending = []
+
+    def save():
+        pending.clear()
+        xfconf_set("keyboards", prop, "int", int(scale.get_value()))
+        return False
+
+    def changed(s):
+        shown.set_text(f"{int(s.get_value())} {unit}")
+        if pending:  # dragging: one write at the end, not one per pixel
+            GLib.source_remove(pending.pop())
+        pending.append(GLib.timeout_add(300, save))
+    scale.connect("value-changed", changed)
+    box = css(Gtk.Box(spacing=10), "volume-row")  # same slider look as the volume
+    box.add(scale)
+    box.add(shown)
+    return box
+
+
+def shortcut_rows():
+    out = subprocess.run(["xfconf-query", "-c", "xfce4-keyboard-shortcuts", "-l", "-v"],
+                         capture_output=True, text=True).stdout
+    rows = []
+    for line in out.splitlines():
+        path, _, command = line.partition(" ")
+        parts = path.split("/")  # ['', 'commands', 'custom', '<Super>space'], skipping sub-keys
+        if len(parts) != 4 or parts[1:3] != ["commands", "custom"]:
+            continue
+        key, mods = Gtk.accelerator_parse(parts[3])
+        if key:
+            keys = css(Gtk.Label(label=Gtk.accelerator_get_label(key, mods)), "keys")
+            program, _, args = command.strip().partition(" ")
+            rows.append(row(f"{os.path.basename(program)} {args}".strip(), end=keys))
+    return sorted(rows, key=lambda r: r.get_children()[-1].get_text().lower())
+
+
+def keyboard_page():
+    test = css(Gtk.Box(), "row")
+    test.add(Gtk.Entry(placeholder_text="Type here to try the repeat settings", hexpand=True))
+    return page(
+        heading("Layout"),
+        card([row("Keyboard layout", end=picker(layouts(), current_layout(), set_layout))]),
+        heading("Typing"),
+        card([row("Repeat delay", "How long to hold a key before it repeats",
+                  repeat_slider("/Default/KeyRepeat/Delay", 100, 1000, 500, "ms")),
+              row("Repeat speed", "Characters per second while held",
+                  repeat_slider("/Default/KeyRepeat/Rate", 5, 80, 20, "/ s")),
+              test]),
+        heading("Shortcuts"),
+        card(shortcut_rows()))
+
+
+PAGES = {"appearance": AppearancePage, "sound": SoundPage, "startup": startup_page, "about": about_page,
+         "keyboard": keyboard_page}
 
 
 # --- window ---
