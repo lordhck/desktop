@@ -1,4 +1,4 @@
-"""Notification area: status items and the clock, at the right end of the taskbar."""
+"""Notification area: status items, the clock and show desktop, at the right end of the taskbar."""
 import html
 import os
 import re
@@ -10,7 +10,10 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
+gi.require_version("Wnck", "3.0")
+from gi.repository import GdkPixbuf, Gio, GLib, Gtk, Wnck  # noqa: E402
+
+from launcher import own_icon  # noqa: E402
 
 ICON = 20
 SCRIPT_PERIOD = 3  # seconds between runs of a status script
@@ -80,6 +83,20 @@ class Clock(Gtk.Label):
         return False
 
 
+class ShowDesktop(Gtk.Button):
+    def __init__(self):
+        super().__init__(relief=Gtk.ReliefStyle.NONE, tooltip_text="Show desktop")
+        self.get_style_context().add_class("tray-item")
+        image = Gtk.Image.new_from_gicon(own_icon("desktop"), Gtk.IconSize.BUTTON)
+        image.set_pixel_size(ICON)
+        self.add(image)
+        self.connect("clicked", self._toggle)
+
+    def _toggle(self, _b):
+        screen = Wnck.Screen.get_default()
+        screen.toggle_showing_desktop(not screen.get_showing_desktop())
+
+
 class Tray(Gtk.Box):
     def __init__(self):
         super().__init__()
@@ -88,3 +105,4 @@ class Tray(Gtk.Box):
         if netmon:
             self.pack_start(ScriptItem(netmon), False, False, 0)
         self.pack_start(Clock(), False, False, 0)
+        self.pack_start(ShowDesktop(), False, False, 0)

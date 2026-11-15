@@ -3,6 +3,7 @@
 
     main.py           start the shell
     main.py --menu    open/close the Start menu of the running shell (bind to Super)
+    main.py --reload  restart the running shell to pick up code changes
 """
 import locale
 import os
@@ -23,23 +24,24 @@ def running_pid():
         return None
 
 
-def on_signal(handler):
+def on_signal(signum, handler):
     import gi
     from gi.repository import GLib
     try:
         gi.require_version("GLibUnix", "2.0")
         from gi.repository import GLibUnix
-        GLibUnix.signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, handler)
+        GLibUnix.signal_add(GLib.PRIORITY_DEFAULT, signum, handler)
     except (ImportError, ValueError):
-        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, handler)
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signum, handler)
 
 
 def main():
-    if sys.argv[1:] == ["--menu"]:
+    commands = {"--menu": signal.SIGUSR1, "--reload": signal.SIGHUP}
+    if len(sys.argv) == 2 and sys.argv[1] in commands:
         pid = running_pid()
         if pid is None:
             sys.exit("shell is not running")
-        os.kill(pid, signal.SIGUSR1)
+        os.kill(pid, commands[sys.argv[1]])
         return
 
     # GTK is only loaded here: `--menu` above must start fast
@@ -53,7 +55,9 @@ def main():
     bar = Taskbar()
     bar.connect("destroy", Gtk.main_quit)
     bar.show_all()
-    on_signal(lambda: bar.start.toggle_menu() or True)
+    on_signal(signal.SIGUSR1, lambda: bar.start.toggle_menu() or True)
+    # exec in place: same PID, so the pidfile stays valid
+    on_signal(signal.SIGHUP, lambda: os.execv(sys.executable, [sys.executable, os.path.realpath(__file__)]))
     with open(PIDFILE, "w") as f:
         f.write(str(os.getpid()))
     try:
