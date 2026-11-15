@@ -75,15 +75,24 @@ def own_icon(name):
     return Gio.FileIcon.new(Gio.File.new_for_path(os.path.join(ICONS, f"{name}.svg")))
 
 
-def settings_menu(widget, text, page):
-    """Right-click menu on a tray icon with one item that opens its Control Panel page."""
+def tray_menu(widget, toggle, settings, page):
+    """Right-click menu on a tray icon: toggle() -> (label, icon of the current state, action),
+    then a Control Panel page. The toggle is asked when the menu opens."""
     def on_press(_w, ev):
         if ev.button != 3:
             return False
         widget.menu = new_menu()  # kept on the widget, or it's garbage-collected while open
-        item = menu_item(text)
-        item.connect("activate", lambda *_: run(CONTROL_PANEL, page))
-        widget.menu.append(item)
+        text, icon, action = toggle()
+        first = menu_item(text)
+        first.get_style_context().add_class("toggle")
+        image = Gtk.Image.new_from_gicon(own_icon(icon), Gtk.IconSize.MENU)
+        image.set_pixel_size(18)  # the 24px-grid icons blur at 16
+        first.get_child().pack_end(image, False, False, 0)  # on the right, after the label
+        for item, on_activate in ((first, action), (Gtk.SeparatorMenuItem(), None),
+                                  (menu_item(settings), lambda: run(CONTROL_PANEL, page))):
+            if on_activate:
+                item.connect("activate", lambda _i, a=on_activate: a())
+            widget.menu.append(item)
         widget.menu.attach_to_widget(widget, None)
         widget.set_has_tooltip(False)  # it would cover the menu
         widget.menu.connect("deactivate", lambda *_: widget.set_has_tooltip(True))

@@ -84,6 +84,10 @@ menu menuitem:hover {
 menu menuitem:hover label { color: @fg; }
 menu menuitem arrow, menu menuitem image.arrow { color: alpha(@fg, 0.45); min-width: 10px; }
 menu menuitem:hover arrow, menu menuitem:hover image.arrow { color: alpha(@fg, 0.8); }
+/* tray toggle: no submenu arrow, so the icon gets the same inset as the text */
+menu menuitem.toggle { padding-right: 12px; }
+/* shorter than the text line, so the row keeps its height; 1px up to centre on the letters */
+menu menuitem.toggle image { margin: -2px 0 -1px; }
 menu separator {
     background-color: alpha(@fg, 0.08);
     min-height: 1px;

@@ -13,7 +13,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
-from launcher import ICONS, run, settings_menu  # noqa: E402
+from launcher import ICONS, run, tray_menu  # noqa: E402
 
 ICON = 20
 PERIOD = 3        # seconds between status checks
@@ -140,9 +140,14 @@ class NetItem(Gtk.Button):
         self.nets, self.iface, self.status, self.popup = [], None, None, None
         self._conn = None  # last connection key; None until the first check
         self.connect("clicked", lambda *_: self.popup or Popup(self))
-        settings_menu(self, "Network settings…", "network")
+        tray_menu(self, self._wifi_toggle, "Network settings…", "network")
         self.poll()
         GLib.timeout_add_seconds(PERIOD, self.poll)
+
+    def _wifi_toggle(self):
+        off = wifi_blocked()
+        return ("Enable Wi-Fi", "offline", lambda: (set_wifi(True), self.poll())) if off else \
+               ("Disable Wi-Fi", "wifi-3", lambda: (set_wifi(False), self.poll()))
 
     def poll(self):
         nmcli(["-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "dev", "wifi", "list", "--rescan", "no"], self._update)
