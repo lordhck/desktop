@@ -44,7 +44,7 @@ button.tray-item:hover { background-color: @hover; }
 label.clock {
     color: @fg;
     font-size: 10pt;
-    padding: 2px 14px 0 10px;  /* digits have no descenders: nudge down to centre */
+    padding: 2px 12px 0;  /* digits have no descenders: nudge down to centre */
 }
 
 /* start button */
