@@ -12,7 +12,7 @@ chosen because nothing extra is installed: every package is one you picked.
 
     sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-wnck-3.0 librsvg2-common \
         xfwm4 xfce4-session xfce4-settings xfce4-terminal thunar network-manager libnotify-bin \
-        qrencode xcape
+        qrencode xcape rofi
 
 - `gir1.2-wnck-3.0`: window list for the taskbar
 - `librsvg2-common`: loads the SVG icons
@@ -23,6 +23,7 @@ chosen because nothing extra is installed: every package is one you picked.
 - `libnotify-bin`: connection notifications (`notify-send`)
 - `qrencode`: QR code for sharing Wi-Fi
 - `xcape`: opens the Start menu on a Super tap
+- `rofi`: app search, themed by `rofi.rasi`
 
 ## Usage
 
@@ -34,3 +35,9 @@ To open the Start menu with Super, make a Super tap send Alt+F1 and bind Alt+F1 
 `main.py --menu` in Xfce's keyboard shortcuts:
 
     xcape -e 'Super_L=Alt_L|F1'
+
+Search (apps, like Spotlight) is rofi with the shell's theme. Install its
+icon once, then bind Super+Space to the rofi command:
+
+    ln -s ~/dev/desktop/icons/search.svg ~/.local/share/icons/hicolor/scalable/actions/desktop-search.svg
+    rofi -show drun -theme ~/dev/desktop/rofi.rasi

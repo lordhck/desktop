@@ -1,0 +1,87 @@
+/* rofi: Spotlight-style app search, styled like the shell (see style.css) */
+
+configuration {
+    show-icons: true;
+    icon-theme: "wintheme";  // rofi ignores the GTK icon theme
+    drun-display-format: "{name}";
+    drun-exclude-categories: "Settings";  // apps only: settings stay in the Start menu
+    sorting-method: "fzf";
+    sort: true;
+}
+
+* {
+    bg:     #2a2d32;
+    fg:     #e6e6e6;
+    dim:    rgba(230, 230, 230, 55%);
+    line:   rgba(230, 230, 230, 10%);
+    lift:   rgba(230, 230, 230, 10%);
+    font:   "Sans 10.5";
+    background-color: transparent;
+    text-color: @fg;
+}
+
+/* a wide bar in the upper third, like the power dialog */
+window {
+    location: north;
+    anchor: north;
+    y-offset: 22%;
+    width: 640px;
+    background-color: @bg;
+    border: 1px;
+    border-color: @line;
+    border-radius: 14px;
+    padding: 8px;
+}
+mainbox {
+    children: [inputbar, listview];
+}
+
+inputbar {
+    padding: 10px 12px;
+    spacing: 14px;
+    children: [icon-search, entry];
+}
+icon-search {
+    expand: false;
+    filename: "desktop-search";  // icons/search.svg, installed into the hicolor icon theme
+    size: 22px;
+    vertical-align: 0.5;
+}
+entry {
+    font: "Sans 16";
+    placeholder: "Search";
+    placeholder-color: @dim;
+    vertical-align: 0.5;
+    cursor: text;
+}
+
+/* results under a thin line, rows like the Start menu */
+listview {
+    lines: 7;
+    spacing: 2px;
+    fixed-height: false;  // shrink to the matches
+    scrollbar: false;
+    border: 1px 0px 0px 0px solid;
+    border-color: @line;
+    padding: 8px 0 0;
+    margin: 4px 4px 0;
+}
+element {
+    padding: 8px 12px;
+    spacing: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+element selected.normal,
+element selected.active {
+    background-color: @lift;
+}
+element-icon {
+    size: 22px;
+    cursor: inherit;
+}
+element-text {
+    vertical-align: 0.5;
+    highlight: bold;
+    cursor: inherit;
+}
