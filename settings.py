@@ -2,7 +2,7 @@
 """Control Panel: the shell's own settings app.
 
     settings.py          open it
-    settings.py <page>   open it on a page (appearance, sound, network, keyboard, startup, about)
+    settings.py <page>   open it on a page (appearance, sound, network, keyboard, datetime, startup, about)
 """
 import getpass
 import glob
@@ -29,6 +29,7 @@ import volume  # noqa: E402
 from desktop import WALLPAPER_FILE, cover, save_wallpaper  # noqa: E402
 from network import css, default_route, fields, image, label, set_wifi, wifi_blocked  # noqa: E402
 from taskbar import CSS_FILE  # noqa: E402
+from tray import CLOCK_FILE, clock_format  # noqa: E402
 
 # (section, [(page, title, subtitle, icon, badge colour, search words)])
 SECTIONS = [
@@ -122,8 +123,13 @@ def picker(options, current, on_pick):
     popover.add(box)
     button.set_popover(popover)
 
+    def choose(key):
+        chosen.set_text(names.get(key, key))
+        rows.select_row(next((r for r in rows.get_children() if r.key == key), None))
+    button.choose = choose  # set the choice from outside, e.g. back after a failed change
+
     def picked(_rows, item):
-        chosen.set_text(names[item.key])
+        choose(item.key)
         on_pick(item.key)
         popover.popdown()
 
@@ -435,6 +441,79 @@ class NetworkPage(Gtk.ScrolledWindow):
         GLib.timeout_add(1500, lambda: self.refresh() or False)  # NetworkManager needs a moment
 
 
+# --- Date & Time ---
+
+def timedatectl(*args, done):
+    """Run without blocking: polkit may show a password prompt first. done(ok)."""
+    proc = Gio.Subprocess.new(["timedatectl", *args], Gio.SubprocessFlags.STDERR_SILENCE)
+    proc.wait_async(None, lambda p, result: (p.wait_finish(result), done(p.get_successful())))
+
+
+def time_settings():
+    """(time zone, automatic time on)"""
+    out = subprocess.run(["timedatectl", "show", "-p", "Timezone", "-p", "NTP"],
+                         capture_output=True, text=True).stdout
+    props = dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
+    return props.get("Timezone", "UTC"), props.get("NTP") == "yes"
+
+
+class DateTimePage(Gtk.ScrolledWindow):
+    def __init__(self):
+        super().__init__(hscrollbar_policy=Gtk.PolicyType.NEVER)
+        zone, ntp = time_settings()
+        self.clock = label("", "big-time")
+        self.date = label("", "dim")
+        now = css(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2), "row")
+        now.add(self.clock)
+        now.add(self.date)
+
+        self.ntp = Gtk.Switch(active=ntp)
+        self.ntp_handler = self.ntp.connect("state-set", lambda _s, on: self._set_ntp(on) or False)
+        zones = subprocess.run(["timedatectl", "list-timezones"], capture_output=True, text=True).stdout.split()
+        self.zone = picker([(z, z.replace("_", " ")) for z in zones], zone, self._set_zone)
+        twelve = Gtk.Switch(active=clock_format() != "%H:%M")
+        twelve.connect("state-set", lambda _s, on: self._set_format(on) or False)
+
+        box = css(Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8), "page")
+        for child in (heading("Now"), card([now]),
+                      heading("Time"),
+                      card([row("Set time automatically", "From the internet (NTP)", self.ntp),
+                            row("Time zone", end=self.zone)]),
+                      heading("Clock"),
+                      card([row("12-hour clock", "In the taskbar, e.g. 3:45 PM", twelve)])):
+            box.add(child)
+        self.add(box)
+        self._tick()
+        GLib.timeout_add_seconds(1, self._tick)
+
+    def _tick(self):
+        if self.get_mapped() or not self.clock.get_text():
+            time.tzset()  # a new zone shows at once
+            now = time.localtime()
+            self.clock.set_text(time.strftime(clock_format(seconds=True), now))
+            self.date.set_text(time.strftime("%A %-d %B %Y · %Z", now))
+        return True
+
+    def _set_zone(self, zone):
+        def done(_ok):
+            self.zone.choose(time_settings()[0])  # the old zone again if the password was cancelled
+            self._tick()
+        timedatectl("set-timezone", zone, done=done)
+
+    def _set_ntp(self, on):
+        def done(ok):
+            if not ok:  # cancelled or refused: put the switch back
+                with self.ntp.handler_block(self.ntp_handler):
+                    self.ntp.set_active(not on)
+        timedatectl("set-ntp", "true" if on else "false", done=done)
+
+    def _set_format(self, twelve):
+        os.makedirs(os.path.dirname(CLOCK_FILE), exist_ok=True)
+        with open(CLOCK_FILE, "w") as f:  # the taskbar clock watches this file
+            f.write("12h\n" if twelve else "24h\n")
+        self._tick()
+
+
 # --- Startup ---
 
 def autostart_entries():
@@ -595,7 +674,7 @@ def keyboard_page():
 
 
 PAGES = {"appearance": AppearancePage, "sound": SoundPage, "startup": startup_page, "about": about_page,
-         "keyboard": keyboard_page, "network": NetworkPage}
+         "keyboard": keyboard_page, "network": NetworkPage, "datetime": DateTimePage}
 
 
 # --- window ---

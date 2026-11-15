@@ -204,7 +204,7 @@ window.network .details label.value { font-size: 9.5pt; font-feature-settings: "
 window.network .details button.copy { background: none; padding: 0 4px; margin: -1px -4px; min-height: 0; border-radius: 4px; }
 window.network .details button.copy:hover { background-color: alpha(@fg, 0.10); }
 window.network .details button.copy label { font-size: 9.5pt; font-feature-settings: "tnum"; }
-window.network entry, window.settings .page entry, popover.picker-list entry {
+window.network entry, window.settings .page entry {
     background: alpha(black, 0.20);
     color: @fg;
     caret-color: @fg;
@@ -213,7 +213,7 @@ window.network entry, window.settings .page entry, popover.picker-list entry {
     box-shadow: none;
     padding: 7px 10px;
 }
-window.network entry:focus, window.settings .page entry:focus, popover.picker-list entry:focus { border-color: @accent; }
+window.network entry:focus, window.settings .page entry:focus { border-color: @accent; }
 window.network switch, window.settings switch {
     background: alpha(@fg, 0.15);
     border: none;
@@ -321,6 +321,8 @@ window.settings button.round, window.network button.round {
     outline-width: 0;
 }
 window.settings button.round:hover, window.network button.round:hover { background: alpha(#e06c75, 0.24); }
+
+window.settings label.big-time { font-size: 26pt; font-weight: bold; font-feature-settings: "tnum"; }
 
 window.settings button.thumb {
     background: none;
