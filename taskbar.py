@@ -1,4 +1,5 @@
-"""Taskbar: a bar docked to the bottom of the screen with a button per open window."""
+"""Taskbar: a bar docked to the bottom of the screen with a button per pinned or open app."""
+import functools
 import os
 
 import gi
@@ -8,58 +9,153 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("GdkX11", "3.0")
 gi.require_version("Wnck", "3.0")
-from gi.repository import Gdk, GdkPixbuf, GdkX11, Gtk, Wnck  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, GdkX11, Gio, Gtk, Wnck  # noqa: E402
 
 import x11  # noqa: E402
-from launcher import StartButton  # noqa: E402
+from launcher import StartButton, launch, menu_item, new_menu, own_icon  # noqa: E402
 from tray import Tray  # noqa: E402
 
 HEIGHT = 40
 ICON = 24
 DRAG_THRESHOLD = 8  # px before a press becomes a drag
 CSS_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "style.css")
+ICONS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "icons")
+PINNED_FILE = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")),
+                           "shell", "pinned")
 
 # window types that get a button (like Xfce's window list)
 LISTED = (Wnck.WindowType.NORMAL, Wnck.WindowType.DIALOG)
 
 
-class WindowButton(Gtk.Button):
-    """One open window: click to switch to it (or minimize it if active), drag to reorder."""
+@functools.cache
+def wm_classes():
+    """StartupWMClass (lowercase) -> app, for apps whose window class differs from their id."""
+    return {a.get_startup_wm_class().lower(): a for a in Gio.AppInfo.get_all()
+            if isinstance(a, Gio.DesktopAppInfo) and a.get_startup_wm_class()}
 
-    def __init__(self, bar, window):
-        super().__init__(relief=Gtk.ReliefStyle.NONE)
+
+def desktop_app(app_id):
+    try:
+        return Gio.DesktopAppInfo.new(app_id)
+    except TypeError:  # PyGObject raises instead of returning None for unknown ids
+        return None
+
+
+def app_for(window):
+    """The installed app a window belongs to, or None."""
+    for name in filter(None, (window.get_class_instance_name(), window.get_class_group_name())):
+        app = (wm_classes().get(name.lower()) or desktop_app(f"{name}.desktop")
+               or desktop_app(f"{name.lower()}.desktop"))
+        if app:
+            return app
+    return None
+
+
+def load_pinned():
+    try:
+        with open(PINNED_FILE) as f:
+            return [line.strip() for line in f if line.strip()]
+    except OSError:
+        return []
+
+
+class TaskButton(Gtk.Button):
+    """A pinned app and/or all open windows of one app. Click to launch it or switch to it
+    (minimize it if it's the only window and active), click again to cycle its windows,
+    right-click for a window list."""
+
+    def __init__(self, bar, key, app, group):
+        super().__init__(relief=Gtk.ReliefStyle.NONE, has_tooltip=True)
         self.bar = bar
-        self.window = window
+        self.key = key      # app id, or the class group for windows of no known app
+        self.app = app
+        self.group = group
+        self.windows = []   # in opening order
+        self.menu = None
         self._press_x = None
         self.dragging = False
         self.get_style_context().add_class("task")
         self.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
 
         self.image = Gtk.Image()
-        self.add(self.image)
-        self._update_icon()
-        self._update_title()
+        # badge on the icon's bottom-right corner when the app has several windows
+        self.plus = Gtk.Image.new_from_file(os.path.join(ICONS, "plus.svg"))
+        self.plus.set_halign(Gtk.Align.END)
+        self.plus.set_valign(Gtk.Align.END)
+        self.plus.set_margin_end(8)
+        self.plus.set_margin_bottom(5)
+        self.plus.set_no_show_all(True)
+        overlay = Gtk.Overlay()
+        overlay.add(self.image)
+        overlay.add_overlay(self.plus)
+        self.add(overlay)
 
-        self._handlers = [
-            window.connect("icon-changed", lambda *_: self._update_icon()),
-            window.connect("name-changed", lambda *_: self._update_title()),
-        ]
+        self._icon_handler = None
+        if app and app.get_icon():
+            self.image.set_from_gicon(app.get_icon(), Gtk.IconSize.BUTTON)
+            self.image.set_pixel_size(ICON)
+        else:
+            self._update_icon()
+            self._icon_handler = group.connect("icon-changed", lambda *_: self._update_icon())
+
+        self.connect("query-tooltip", self._on_tooltip)
         self.connect("button-press-event", self._on_press)
         self.connect("motion-notify-event", self._on_motion)
         self.connect("button-release-event", self._on_release)
 
-    def disconnect_window(self):
-        for h in self._handlers:
-            self.window.disconnect(h)
+    def update_state(self):
+        self.plus.set_visible(len(self.windows) > 1)
+        ctx = self.get_style_context()
+        (ctx.remove_class if self.windows else ctx.add_class)("idle")
+
+    def disconnect_group(self):
+        if self._icon_handler:
+            self.group.disconnect(self._icon_handler)
 
     def _update_icon(self):
-        pix = self.window.get_icon()
+        pix = self.group.get_icon()
         if pix.get_width() != ICON:
             pix = pix.scale_simple(ICON, ICON, GdkPixbuf.InterpType.BILINEAR)
         self.image.set_from_pixbuf(pix)
 
-    def _update_title(self):
-        self.set_tooltip_text(self.window.get_name())
+    def _name(self):
+        return self.app.get_display_name() if self.app else self.group.get_name()
+
+    def _on_tooltip(self, _w, _x, _y, _kb, tooltip):
+        if len(self.windows) == 1:
+            tooltip.set_text(self.windows[0].get_name())
+        elif self.windows:
+            tooltip.set_text(f"{self._name()} ({len(self.windows)})")
+        else:
+            tooltip.set_text(self._name())
+        return True
+
+    def _show_menu(self, ev):
+        self.menu = new_menu()
+        for window in self.windows:
+            item = menu_item(window.get_name(), window.get_mini_icon())
+            item.connect("activate", lambda _i, w=window: w.activate(Gtk.get_current_event_time()))
+            self.menu.append(item)
+        if self.windows:
+            self.menu.append(Gtk.SeparatorMenuItem())
+        if self.app:
+            pinned = self.key in self.bar.pinned
+            pin = menu_item("Unpin from taskbar" if pinned else "Pin to taskbar",
+                            own_icon("check" if pinned else "blank"))  # blank keeps text aligned
+            pin.connect("activate", lambda *_: (self.bar.unpin if pinned else self.bar.pin)(self))
+            self.menu.append(pin)
+        if self.windows:
+            close = menu_item("Close all windows" if len(self.windows) > 1 else "Close window",
+                              own_icon("close"))
+            close.connect("activate", lambda *_: self._close_all())
+            self.menu.append(close)
+        self.menu.attach_to_widget(self, None)
+        self.menu.show_all()
+        self.menu.popup_at_widget(self, Gdk.Gravity.NORTH_WEST, Gdk.Gravity.SOUTH_WEST, ev)
+
+    def _close_all(self):
+        for window in list(self.windows):
+            window.close(Gtk.get_current_event_time())
 
     # click / drag
 
@@ -67,6 +163,8 @@ class WindowButton(Gtk.Button):
         if ev.button == 1:
             self._press_x = ev.x_root
             self.dragging = False
+        elif ev.button == 3:
+            self._show_menu(ev)
         return True  # we handle clicks ourselves
 
     def _on_motion(self, _w, ev):
@@ -86,10 +184,18 @@ class WindowButton(Gtk.Button):
         if self.dragging:
             self.dragging = False
             self.get_style_context().remove_class("dragging")
-        elif self.window.is_active():
-            self.window.minimize()
+            self.bar.save_pinned()
+            return True
+        active = self.bar.wnck.get_active_window()
+        if not self.windows:
+            launch(self.app)
+        elif active not in self.windows:
+            self.windows[0].activate(ev.time)
+        elif len(self.windows) == 1:
+            active.minimize()
         else:
-            self.window.activate(ev.time)
+            nxt = self.windows[(self.windows.index(active) + 1) % len(self.windows)]
+            nxt.activate(ev.time)
         return True
 
 
@@ -123,7 +229,15 @@ class Taskbar(Gtk.Window):
         bar.pack_start(self.tasks, True, True, 0)
         bar.pack_end(Tray(), False, False, 0)
         self.add(bar)
-        self.buttons = {}  # Wnck.Window -> WindowButton
+        self.groups = {}   # TaskButton.key -> TaskButton
+        self.buttons = {}  # Wnck.Window -> TaskButton
+
+        self.pinned = []
+        for app_id in load_pinned():
+            app = desktop_app(app_id)
+            if app:  # skip apps that were uninstalled
+                self.pinned.append(app_id)
+                self._new_button(app_id, app, None)
 
         Wnck.set_default_icon_size(32)
         self.wnck = Wnck.Screen.get_default()
@@ -139,6 +253,18 @@ class Taskbar(Gtk.Window):
 
     # windows
 
+    def _new_button(self, key, app, group):
+        button = self.groups[key] = TaskButton(self, key, app, group)
+        self.tasks.pack_start(button, False, False, 0)
+        button.show_all()
+        button.update_state()
+        return button
+
+    def _drop(self, button):
+        del self.groups[button.key]
+        button.disconnect_group()
+        button.destroy()
+
     def _track(self, window):
         # every window, listed or not: a skipped one may ask to be listed later
         window.connect("state-changed", lambda w, *_: self._on_state(w))
@@ -147,16 +273,21 @@ class Taskbar(Gtk.Window):
     def _add(self, window):
         if window in self.buttons or window.is_skip_tasklist() or window.get_window_type() not in LISTED:
             return
-        button = WindowButton(self, window)
+        app = app_for(window)
+        key = app.get_id() if app else window.get_class_group()
+        button = self.groups.get(key) or self._new_button(key, app, window.get_class_group())
+        button.windows.append(window)
+        button.update_state()
         self.buttons[window] = button
-        self.tasks.pack_start(button, False, False, 0)
-        button.show_all()
 
     def _remove(self, window):
         button = self.buttons.pop(window, None)
-        if button:
-            button.disconnect_window()
-            button.destroy()
+        if not button:
+            return
+        button.windows.remove(window)
+        button.update_state()
+        if not button.windows and button.key not in self.pinned:
+            self._drop(button)
 
     def _on_state(self, window):
         # a window can start or stop asking to be left out of taskbars
@@ -168,9 +299,28 @@ class Taskbar(Gtk.Window):
 
     def _mark_active(self):
         active = self.wnck.get_active_window()
-        for window, button in self.buttons.items():
+        for button in self.groups.values():
             ctx = button.get_style_context()
-            (ctx.add_class if window == active else ctx.remove_class)("active")
+            (ctx.add_class if active in button.windows else ctx.remove_class)("active")
+
+    # pinning
+
+    def pin(self, button):
+        self.pinned.append(button.key)
+        self.save_pinned()
+
+    def unpin(self, button):
+        self.pinned.remove(button.key)
+        self.save_pinned()
+        if not button.windows:
+            self._drop(button)
+
+    def save_pinned(self):
+        # pinned order is their order on the bar
+        self.pinned = [b.key for b in self.tasks.get_children() if b.key in self.pinned]
+        os.makedirs(os.path.dirname(PINNED_FILE), exist_ok=True)
+        with open(PINNED_FILE, "w") as f:
+            f.writelines(f"{app_id}\n" for app_id in self.pinned)
 
     # reordering
 

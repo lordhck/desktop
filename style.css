@@ -21,6 +21,7 @@ button.task {
     outline-width: 0;
 }
 button.task:hover { background-color: @hover; }
+button.task.idle { box-shadow: none; }        /* pinned, not running */
 button.task.active {
     background-color: @hover;
     box-shadow: inset 0 -2px @accent;          /* active window */

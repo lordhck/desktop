@@ -6,7 +6,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
 ICONS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "icons")
 TOP_ICON = 22   # category icons
@@ -38,7 +38,9 @@ def menu_item(text, icon=None, size=APP_ICON, center=False):
         image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.MENU)
         image.set_pixel_size(size)
         box.pack_start(image, False, False, 0)
-    box.pack_start(Gtk.Label(label=text, xalign=0), not center, not center, 0)
+    # window titles can be very long
+    label = Gtk.Label(label=text, xalign=0, max_width_chars=50, ellipsize=Pango.EllipsizeMode.END)
+    box.pack_start(label, not center, not center, 0)
     item.add(box)
     return item
 
