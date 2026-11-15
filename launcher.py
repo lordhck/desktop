@@ -8,6 +8,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango  # noqa: E402
 
+import power  # noqa: E402
+
 ICONS = os.path.join(os.path.dirname(os.path.realpath(__file__)), "icons")
 TOP_ICON = 22   # category icons
 APP_ICON = 16   # app icons in submenus
@@ -123,8 +125,13 @@ def build_menu():
         items.append(item)
 
     # bottom row: two buttons side by side (menu grid columns are equal width)
-    off = menu_item("Turn off", own_icon("power"), APP_ICON, center=True)
-    off.connect("activate", lambda *_: run("xfce4-session-logout"))  # dialog, not instant
+    off = menu_item("Power", own_icon("power"), APP_ICON, center=True)
+    # same arrow as the submenu items
+    arrow = Gtk.Image.new_from_icon_name("pan-end-symbolic", Gtk.IconSize.MENU)
+    arrow.set_pixel_size(10)
+    arrow.get_style_context().add_class("arrow")
+    off.get_child().pack_start(arrow, False, False, 0)
+    off.connect("activate", lambda *_: power.show())
     lock = menu_item("Lock", own_icon("lock"), 14, center=True)
     lock.connect("activate", lambda *_: run("xflock4"))
     for item, end in ((off, "first"), (lock, "last")):

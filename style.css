@@ -80,15 +80,15 @@ menu menuitem:hover {
     border-color: transparent;
 }
 menu menuitem:hover label { color: @fg; }
-menu menuitem arrow { color: alpha(@fg, 0.45); min-width: 10px; }
-menu menuitem:hover arrow { color: alpha(@fg, 0.8); }
+menu menuitem arrow, menu menuitem image.arrow { color: alpha(@fg, 0.45); min-width: 10px; }
+menu menuitem:hover arrow, menu menuitem:hover image.arrow { color: alpha(@fg, 0.8); }
 menu separator {
     background-color: alpha(@fg, 0.08);
     min-height: 1px;
     margin: 4px 10px;
 }
 
-/* Turn off / Lock: a darker strip along the bottom of the Start menu */
+/* Power / Lock: a darker strip along the bottom of the Start menu */
 menu.start-menu { padding-bottom: 0; }
 menu.start-menu menuitem {
     padding-top: 9px;
@@ -111,3 +111,110 @@ menu.start-menu menuitem.footer.last {
 }
 menu.start-menu menuitem.footer:hover { background-color: alpha(@fg, 0.08); background-image: none; }
 
+
+/* power options box */
+window.power {
+    background-color: #2a2d32;
+    border: 1px solid alpha(@fg, 0.10);
+    border-radius: 14px;
+}
+window.power button {
+    background: none;
+    border: none;
+    border-radius: 8px;
+    box-shadow: none;
+    min-width: 120px;
+    padding: 22px 12px 18px;
+    outline-width: 0;
+}
+window.power button:hover { background-color: alpha(@fg, 0.10); }
+window.power button label { color: @fg; font-size: 10.5pt; }
+
+/* network popup: built like the Start menu */
+window.network {
+    background-color: #2a2d32;
+    border: 1px solid alpha(@fg, 0.10);
+    color: @fg;
+}
+window.network .head { padding: 12px 14px 10px; min-width: 300px; }
+window.network .title { font-weight: bold; font-size: 10.5pt; }
+window.network .dim { color: alpha(@fg, 0.55); font-size: 9pt; }
+window.network .good { color: #98c379; }
+window.network .bad { color: #e06c75; }
+window.network separator { background-color: alpha(@fg, 0.08); min-height: 1px; margin: 0 10px 4px; }
+window.network scrolledwindow, window.network viewport { background: none; border: none; }
+window.network undershoot, window.network overshoot { background: none; box-shadow: none; }
+
+window.network button {
+    background: none;
+    border: none;
+    border-radius: 6px;
+    box-shadow: none;
+    text-shadow: none;
+    outline-width: 0;
+}
+window.network button label { color: @fg; }
+window.network button:hover { background-color: alpha(@fg, 0.10); }
+window.network button:disabled { opacity: 0.4; }
+window.network button.net { padding: 8px 10px; margin: 0 4px; }
+window.network button.net label { font-size: 10.5pt; }
+window.network button.net label.dim { font-size: 9pt; color: alpha(@fg, 0.55); }
+window.network .lock { opacity: 0.5; }
+
+/* same strip as Power / Lock in the Start menu */
+window.network .footer { margin: 4px; }
+window.network .footer button {
+    padding: 10px;
+    border-radius: 0;
+    background-color: alpha(black, 0.12);
+}
+window.network .footer button:first-child { border-radius: 8px 0 0 8px; }
+window.network .footer button:last-child { border-radius: 0 8px 8px 0; box-shadow: inset 1px 0 alpha(@fg, 0.10); }
+window.network .footer button:hover { background-color: alpha(@fg, 0.08); }
+window.network .footer button label { font-size: 10.5pt; }
+
+window.network .sheet { padding: 6px 14px 10px; }
+window.network .sheet button { padding: 7px 16px; background-color: alpha(@fg, 0.08); }
+window.network .sheet button:hover { background-color: alpha(@fg, 0.14); }
+window.network .sheet button.primary { background-color: @accent; }
+window.network .sheet button.danger label { color: #e06c75; }
+window.network .sheet button.icon { padding: 4px; background: none; }
+window.network .sheet button.icon:hover { background-color: alpha(@fg, 0.10); }
+window.network .details {
+    background-color: alpha(black, 0.12);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 4px;
+}
+window.network .details label.dim { font-size: 9.5pt; }
+window.network .details label.value { font-size: 9.5pt; font-feature-settings: "tnum"; }
+window.network .details button.copy { padding: 0 4px; margin: -1px -4px; min-height: 0; border-radius: 4px; }
+window.network .details button.copy label { font-size: 9.5pt; font-feature-settings: "tnum"; }
+window.network entry {
+    background: alpha(black, 0.20);
+    color: @fg;
+    caret-color: @fg;
+    border: 1px solid alpha(@fg, 0.10);
+    border-radius: 6px;
+    box-shadow: none;
+    padding: 7px 10px;
+}
+window.network entry:focus { border-color: @accent; }
+window.network switch {
+    background: alpha(@fg, 0.15);
+    border: none;
+    border-radius: 10px;
+    box-shadow: none;
+    min-width: 34px;
+    min-height: 18px;
+}
+window.network switch:checked { background: @accent; }
+window.network switch slider {
+    background: @fg;
+    border: none;
+    border-radius: 50%;
+    box-shadow: none;
+    min-width: 14px;
+    min-height: 14px;
+    margin: 2px;
+}
