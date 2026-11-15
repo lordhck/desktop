@@ -1,0 +1,112 @@
+/* taskbar: dark, flat, matches the wintheme panel */
+
+@define-color bar_bg    rgba(28, 30, 34, 0.94);
+@define-color bar_edge  rgba(255, 255, 255, 0.07);
+@define-color fg        #e6e6e6;
+@define-color hover     rgba(255, 255, 255, 0.08);
+@define-color accent    #3d8fd1;
+
+window.taskbar {
+    background-color: @bar_bg;
+    box-shadow: inset 0 1px @bar_edge;
+}
+
+button.task {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: inset 0 -2px alpha(@fg, 0.18);  /* open window */
+    min-width: 48px;
+    padding: 0;
+    outline-width: 0;
+}
+button.task:hover { background-color: @hover; }
+button.task.active {
+    background-color: @hover;
+    box-shadow: inset 0 -2px @accent;          /* active window */
+}
+button.task.dragging { background-color: alpha(@fg, 0.16); }
+
+/* notification area */
+button.tray-item {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    min-width: 36px;
+    padding: 0;
+    outline-width: 0;
+}
+button.tray-item:hover { background-color: @hover; }
+label.clock {
+    color: @fg;
+    font-size: 10pt;
+    padding: 2px 14px 0 10px;  /* digits have no descenders: nudge down to centre */
+}
+
+/* start button */
+button.start {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    min-width: 52px;
+    padding: 0;
+    outline-width: 0;
+}
+button.start:hover { background-color: @hover; }
+button.start:checked { background-color: @hover; box-shadow: inset 0 -2px @accent; }
+
+/* start menu (and its submenus) */
+menu {
+    background-color: #2a2d32;
+    border: 1px solid alpha(@fg, 0.10);
+    padding: 4px 0;
+    color: @fg;
+}
+menu menuitem {
+    padding: 7px 24px 7px 10px;
+    margin: 0 4px;
+    min-width: 150px;
+    border-radius: 6px;
+    color: @fg;
+}
+/* hover: the same soft lift as the taskbar buttons, no colour change */
+menu menuitem:hover {
+    background-color: alpha(@fg, 0.10);
+    background-image: none;  /* Greybird paints a blue gradient here */
+    box-shadow: none;
+    border-color: transparent;
+}
+menu menuitem:hover label { color: @fg; }
+menu menuitem arrow { color: alpha(@fg, 0.45); min-width: 10px; }
+menu menuitem:hover arrow { color: alpha(@fg, 0.8); }
+menu separator {
+    background-color: alpha(@fg, 0.08);
+    min-height: 1px;
+    margin: 4px 10px;
+}
+
+/* Turn off / Lock: a darker strip along the bottom of the Start menu */
+menu.start-menu { padding-bottom: 0; }
+menu.start-menu menuitem {
+    padding-top: 9px;
+    padding-bottom: 9px;
+    min-width: 180px;
+}
+menu.start-menu menuitem label { font-size: 10.5pt; }
+menu.start-menu menuitem.footer {
+    min-width: 0;
+    margin: 4px 0;
+    padding: 10px 10px;
+    background-color: alpha(black, 0.12);
+}
+/* joined: rounded only on the outer ends, a thin line between the two */
+menu.start-menu menuitem.footer.first { margin-left: 4px; border-radius: 8px 0 0 8px; }
+menu.start-menu menuitem.footer.last {
+    margin-right: 4px;
+    border-radius: 0 8px 8px 0;
+    box-shadow: inset 1px 0 alpha(@fg, 0.10);
+}
+menu.start-menu menuitem.footer:hover { background-color: alpha(@fg, 0.08); background-image: none; }
+
