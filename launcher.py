@@ -35,7 +35,7 @@ SETTINGS_MANAGER = "xfce-settings-manager.desktop"
 
 def menu_item(text, icon=None, size=APP_ICON, center=False):
     item = Gtk.MenuItem()
-    box = Gtk.Box(spacing=10, halign=Gtk.Align.CENTER if center else Gtk.Align.FILL)
+    box = Gtk.Box(spacing=14, halign=Gtk.Align.CENTER if center else Gtk.Align.FILL)
     if icon is not None:
         image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.MENU)
         image.set_pixel_size(size)

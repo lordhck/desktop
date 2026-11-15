@@ -62,13 +62,13 @@ button.start:checked { background-color: @hover; box-shadow: inset 0 -2px @accen
 menu {
     background-color: #2a2d32;
     border: 1px solid alpha(@fg, 0.10);
-    padding: 4px 0;
+    padding: 6px 0;
     color: @fg;
 }
 menu menuitem {
-    padding: 7px 24px 7px 10px;
-    margin: 0 4px;
-    min-width: 150px;
+    padding: 8px 28px 8px 12px;
+    margin: 1px 6px;
+    min-width: 170px;
     border-radius: 6px;
     color: @fg;
 }
@@ -85,27 +85,27 @@ menu menuitem:hover arrow, menu menuitem:hover image.arrow { color: alpha(@fg, 0
 menu separator {
     background-color: alpha(@fg, 0.08);
     min-height: 1px;
-    margin: 4px 10px;
+    margin: 6px 12px;
 }
 
 /* Power / Lock: a darker strip along the bottom of the Start menu */
 menu.start-menu { padding-bottom: 0; }
 menu.start-menu menuitem {
-    padding-top: 9px;
-    padding-bottom: 9px;
-    min-width: 180px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    min-width: 240px;
 }
 menu.start-menu menuitem label { font-size: 10.5pt; }
 menu.start-menu menuitem.footer {
     min-width: 0;
-    margin: 4px 0;
-    padding: 10px 10px;
+    margin: 6px 0;
+    padding: 12px 10px;
     background-color: alpha(black, 0.12);
 }
 /* joined: rounded only on the outer ends, a thin line between the two */
-menu.start-menu menuitem.footer.first { margin-left: 4px; border-radius: 8px 0 0 8px; }
+menu.start-menu menuitem.footer.first { margin-left: 6px; border-radius: 8px 0 0 8px; }
 menu.start-menu menuitem.footer.last {
-    margin-right: 4px;
+    margin-right: 6px;
     border-radius: 0 8px 8px 0;
     box-shadow: inset 1px 0 alpha(@fg, 0.10);
 }
