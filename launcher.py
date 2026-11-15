@@ -30,7 +30,7 @@ CATEGORIES = [
     ("System", "System", "system"),
 ]
 OTHER = ("Other", "other")
-SETTINGS_MANAGER = "xfce-settings-manager.desktop"
+CONTROL_PANEL = os.path.join(os.path.dirname(os.path.realpath(__file__)), "settings.py")
 
 
 def menu_item(text, icon=None, size=APP_ICON, center=False):
@@ -111,18 +111,15 @@ def build_menu():
         items.append(item)
 
     items.append(Gtk.SeparatorMenuItem())
+    item = menu_item("Settings", own_icon("cat-settings"), TOP_ICON)
+    sub = new_menu()
+    first = menu_item("Control Panel", own_icon("cat-settings"))
+    first.connect("activate", lambda *_: run(CONTROL_PANEL))
+    sub.append(first)
     if settings:
-        item = menu_item("Settings", own_icon("cat-settings"), TOP_ICON)
-        sub = new_menu()
-        manager = Gio.DesktopAppInfo.new(SETTINGS_MANAGER)
-        if manager:
-            first = menu_item("Settings Manager", manager.get_icon())
-            first.connect("activate", lambda *_: launch(manager))
-            sub.append(first)
-            sub.append(Gtk.SeparatorMenuItem())
-            settings = [a for a in settings if a.get_id() != SETTINGS_MANAGER]
-        item.set_submenu(add_apps(sub, settings))
-        items.append(item)
+        sub.append(Gtk.SeparatorMenuItem())
+    item.set_submenu(add_apps(sub, settings))
+    items.append(item)
 
     # bottom row: two buttons side by side (menu grid columns are equal width)
     off = menu_item("Power", own_icon("power"), APP_ICON, center=True)

@@ -30,6 +30,7 @@ chosen because nothing extra is installed: every package is one you picked.
     ./main.py           start the shell
     ./main.py --menu    open/close the Start menu
     ./main.py --reload  restart the running shell after code changes
+    ./settings.py       Control Panel (also Start > Settings and the desktop's right-click menu)
 
 To open the Start menu with Super, make a Super tap send Alt+F1 and bind Alt+F1 to
 `main.py --menu` in Xfce's keyboard shortcuts:

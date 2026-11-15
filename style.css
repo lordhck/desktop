@@ -211,7 +211,7 @@ window.network entry {
     padding: 7px 10px;
 }
 window.network entry:focus { border-color: @accent; }
-window.network switch {
+window.network switch, window.settings switch {
     background: alpha(@fg, 0.15);
     border: none;
     border-radius: 10px;
@@ -219,8 +219,8 @@ window.network switch {
     min-width: 34px;
     min-height: 18px;
 }
-window.network switch:checked { background: @accent; }
-window.network switch slider {
+window.network switch:checked, window.settings switch:checked { background: @accent; }
+window.network switch slider, window.settings switch slider {
     background: @fg;
     border: none;
     border-radius: 50%;
@@ -230,9 +230,67 @@ window.network switch slider {
     margin: 2px;
 }
 
-/* volume popup: reuses the network popup look */
-window.volume box { padding: 10px 14px 10px 8px; min-width: 260px; }
-window.volume button { padding: 6px; }
-window.volume scale trough { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.15); border: none; }
-window.volume scale highlight { background-color: @accent; border-radius: 2px; border: none; }
-window.volume scale slider { min-width: 14px; min-height: 14px; border-radius: 7px; background: @fg; border: none; box-shadow: none; }
+/* volume row: tray popup and Control Panel */
+window.volume .volume-row { padding: 10px 14px 10px 8px; min-width: 260px; }
+.volume-row button { padding: 6px; background: none; border: none; border-radius: 6px; box-shadow: none; outline-width: 0; }
+.volume-row button:hover { background-color: alpha(@fg, 0.10); }
+.volume-row scale trough { min-height: 4px; border-radius: 2px; background-color: alpha(@fg, 0.15); border: none; }
+.volume-row scale highlight { background-color: @accent; border-radius: 2px; border: none; }
+.volume-row scale slider { min-width: 14px; min-height: 14px; border-radius: 7px; background: @fg; border: none; box-shadow: none; }
+
+/* Control Panel */
+window.settings { background-color: #24272b; color: @fg; }
+window.settings .banner {
+    background-image: linear-gradient(115deg, alpha(@accent, 0.50), alpha(@accent, 0.08));
+    padding: 22px 28px;
+}
+window.settings .banner .big { font-size: 17pt; font-weight: bold; }
+window.settings .banner .dim { color: alpha(@fg, 0.75); font-size: 9.5pt; }
+window.settings .chip {
+    background-color: alpha(black, 0.25);
+    border-radius: 10px;
+    padding: 2px 10px;
+    margin-top: 4px;
+    font-size: 9pt;
+}
+window.settings .home { padding: 4px 22px 22px; }
+window.settings .page { padding: 8px 28px 24px; }
+window.settings .section { color: alpha(@fg, 0.50); font-size: 8.5pt; font-weight: bold; margin: 18px 0 4px; }
+window.settings .dim { color: alpha(@fg, 0.55); font-size: 9pt; }
+window.settings flowboxchild { padding: 0; }
+
+window.settings button.tile {
+    background: alpha(@fg, 0.05);
+    border: none;
+    border-radius: 10px;
+    box-shadow: none;
+    padding: 12px;
+    outline-width: 0;
+}
+window.settings button.tile:hover { background: alpha(@fg, 0.10); }
+window.settings button.tile:disabled { opacity: 0.35; }
+window.settings button.tile .title { font-weight: bold; }
+window.settings .badge { border-radius: 8px; min-width: 34px; min-height: 34px; }
+window.settings .badge.blue { background-color: @accent; }
+window.settings .badge.red { background-color: #e06c75; }
+window.settings .badge.orange { background-color: #d19a66; }
+window.settings .badge.teal { background-color: #3fa7a0; }
+window.settings .badge.grey { background-color: alpha(@fg, 0.22); }
+
+window.settings .card { background-color: alpha(@fg, 0.05); border-radius: 10px; }
+window.settings .card .row { padding: 10px 16px; }
+window.settings .card separator { background-color: alpha(@fg, 0.07); min-height: 1px; margin: 0 16px; }
+window.settings .card label.value { color: alpha(@fg, 0.75); }
+window.settings button.row { background: none; border: none; border-radius: 10px; box-shadow: none; padding: 0; outline-width: 0; }
+window.settings button.row:hover { background-color: alpha(@fg, 0.06); }
+
+window.settings button.thumb {
+    background: none;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    box-shadow: none;
+    padding: 2px;
+    outline-width: 0;
+}
+window.settings button.thumb:hover { border-color: alpha(@fg, 0.25); }
+window.settings button.thumb.selected { border-color: @accent; }

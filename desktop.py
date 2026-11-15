@@ -6,12 +6,18 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
-from launcher import menu_item, new_menu, run  # noqa: E402
+from launcher import CONTROL_PANEL, menu_item, new_menu, run  # noqa: E402
 from taskbar import CONFIG_DIR  # noqa: E402
 
 WALLPAPER_FILE = os.path.join(CONFIG_DIR, "wallpaper")
+
+
+def save_wallpaper(path):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(WALLPAPER_FILE, "w") as f:
+        f.write(path + "\n")
 
 
 def cover(path, width, height):
@@ -37,25 +43,26 @@ class Desktop(Gtk.Window):
         self.add(self.image)
         self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
         self.connect("button-press-event", lambda _w, ev: ev.button == 3 and self._menu(ev))
+        # the Control Panel changes the wallpaper by writing this file
+        self.monitor = Gio.File.new_for_path(WALLPAPER_FILE).monitor_file(Gio.FileMonitorFlags.NONE, None)
+        self.monitor.connect("changed", lambda _m, _f, _o, event:
+                             event == Gio.FileMonitorEvent.CHANGES_DONE_HINT and self.load_wallpaper())
+        self.load_wallpaper()
+
+    def load_wallpaper(self):
         try:
             with open(WALLPAPER_FILE) as f:
-                self.set_wallpaper(f.read().strip())
-        except OSError:
-            pass  # no wallpaper yet: the plain background colour
-
-    def set_wallpaper(self, path):
-        try:
-            self.image.set_from_pixbuf(cover(path, *self.size))
-        except GLib.Error:
-            self.image.clear()
+                self.image.set_from_pixbuf(cover(f.read().strip(), *self.size))
+        except (OSError, GLib.Error):
+            self.image.clear()  # no wallpaper: the plain background colour
 
     def _menu(self, ev):
         self.menu = new_menu()
         for entry in (("Open terminal", lambda: run("x-terminal-emulator")),
                       ("File manager", lambda: run("thunar", os.path.expanduser("~"))),
                       None,
-                      ("Change wallpaper…", self._choose_wallpaper),
-                      ("Settings", lambda: run("xfce4-settings-manager"))):
+                      ("Change wallpaper…", lambda: run(CONTROL_PANEL, "appearance")),
+                      ("Settings", lambda: run(CONTROL_PANEL))):
             if entry is None:
                 self.menu.append(Gtk.SeparatorMenuItem())
                 continue
@@ -68,17 +75,3 @@ class Desktop(Gtk.Window):
         self.menu.popup_at_pointer(ev)
         return True
 
-    def _choose_wallpaper(self):
-        dialog = Gtk.FileChooserNative(title="Choose a wallpaper", action=Gtk.FileChooserAction.OPEN)
-        images = Gtk.FileFilter()
-        images.set_name("Images")
-        images.add_pixbuf_formats()
-        dialog.add_filter(images)
-        dialog.set_current_folder(os.path.expanduser("~/Pictures"))
-        if dialog.run() == Gtk.ResponseType.ACCEPT:
-            path = dialog.get_filename()
-            self.set_wallpaper(path)
-            os.makedirs(CONFIG_DIR, exist_ok=True)
-            with open(WALLPAPER_FILE, "w") as f:
-                f.write(path + "\n")
-        dialog.destroy()
