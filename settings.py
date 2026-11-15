@@ -506,7 +506,8 @@ PAGES = {"appearance": AppearancePage, "sound": SoundPage, "startup": startup_pa
 
 class ControlPanel(Gtk.ApplicationWindow):
     def __init__(self, app):
-        super().__init__(application=app, title="Control Panel", default_width=957, default_height=582)
+        super().__init__(application=app, title="Control Panel", default_width=957, default_height=582,
+                         window_position=Gtk.WindowPosition.CENTER)
         css(self, "settings")
         self.header = Gtk.HeaderBar(show_close_button=True, title="Control Panel",
                                     decoration_layout=":minimize,close")
@@ -598,8 +599,8 @@ class App(Gtk.Application):
         # a second launch lands here in the running instance
         window = self.get_active_window() or ControlPanel(self)
         args = cmd.get_arguments()[1:]
-        if args and args[0] in PAGES:
-            window.open(args[0])
+        if args:  # a page that isn't built yet opens the home screen
+            window.open(args[0] if args[0] in PAGES else None)
         window.present()
         return 0
 

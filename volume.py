@@ -11,6 +11,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 import network  # noqa: E402
+from launcher import settings_menu  # noqa: E402
 from network import ICON, css, image, pix  # noqa: E402
 
 SINK = "@DEFAULT_SINK@"
@@ -120,6 +121,7 @@ class VolItem(Gtk.Button):
         self.add_events(Gdk.EventMask.SCROLL_MASK | Gdk.EventMask.SMOOTH_SCROLL_MASK)
         self.connect("scroll-event", self._on_scroll)
         self.connect("clicked", lambda *_: self.popup or Popup(self))
+        settings_menu(self, "Sound settings…", "sound")
         # --reload execs in place, which keeps the old subscriber as our child
         stale = subprocess.run(["pgrep", "-P", str(os.getpid()), "-x", "pactl"], capture_output=True, text=True)
         for pid in map(int, stale.stdout.split()):

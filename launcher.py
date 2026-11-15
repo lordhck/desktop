@@ -75,6 +75,24 @@ def own_icon(name):
     return Gio.FileIcon.new(Gio.File.new_for_path(os.path.join(ICONS, f"{name}.svg")))
 
 
+def settings_menu(widget, text, page):
+    """Right-click menu on a tray icon with one item that opens its Control Panel page."""
+    def on_press(_w, ev):
+        if ev.button != 3:
+            return False
+        widget.menu = new_menu()  # kept on the widget, or it's garbage-collected while open
+        item = menu_item(text)
+        item.connect("activate", lambda *_: run(CONTROL_PANEL, page))
+        widget.menu.append(item)
+        widget.menu.attach_to_widget(widget, None)
+        widget.set_has_tooltip(False)  # it would cover the menu
+        widget.menu.connect("deactivate", lambda *_: widget.set_has_tooltip(True))
+        widget.menu.show_all()
+        widget.menu.popup_at_widget(widget, Gdk.Gravity.NORTH_EAST, Gdk.Gravity.SOUTH_EAST, None)
+        return True
+    widget.connect("button-press-event", on_press)
+
+
 def run(*cmd):
     Gio.Subprocess.new(list(cmd), Gio.SubprocessFlags.NONE)
 
